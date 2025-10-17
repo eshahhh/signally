@@ -1,0 +1,188 @@
+#signally-overlay {
+    position: fixed;
+    top: 16px;
+    right: 24px;
+    width: 380px;
+    max-height: calc(100vh - 32px);
+    z-index: 2147483647;
+    display: flex;
+    align-items: stretch;
+    pointer-events: none;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #e2e8f0;
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+}
+
+#signally-overlay.signally-hidden {
+    display: none;
+}
+
+#signally-overlay * {
+    box-sizing: border-box;
+}
+
+#signally-overlay .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+    padding: 1.25rem 1.5rem 2rem;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(12px);
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+#signally-overlay .panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.85);
+}
+
+#signally-overlay .panel__heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+#signally-overlay .panel__brand {
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: 0.2em;
+}
+
+#signally-overlay .panel__status {
+    font-weight: 500;
+    font-size: 0.8rem;
+}
+
+#signally-overlay .panel__actions {
+    display: flex;
+    gap: 0.35rem;
+}
+
+#signally-overlay .panel__icon-btn {
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 999px;
+    background: rgba(30, 41, 59, 0.55);
+    color: rgba(226, 232, 240, 0.88);
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+#signally-overlay .panel__icon-btn:hover {
+    border-color: rgba(226, 232, 240, 0.55);
+}
+
+#signally-overlay .panel__icon-btn:active {
+    transform: translateY(1px);
+}
+
+#signally-overlay .panel__icon-btn--close {
+    border-color: rgba(190, 68, 68, 0.6);
+    background: rgba(71, 15, 31, 0.4);
+}
+
+#signally-overlay .panel__icon-btn--close:hover {
+    border-color: rgba(248, 113, 113, 0.8);
+}
+
+#signally-overlay .panel__section {
+    background: rgba(30, 41, 59, 0.55);
+    border-radius: 16px;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+#signally-overlay .section__title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(148, 163, 184, 0.95);
+}
+
+#signally-overlay .section__body {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+#signally-overlay .summary__list,
+#signally-overlay .followup__list {
+    margin: 0;
+    padding-left: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+#signally-overlay .stream__block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 160px;
+    font-size: 0.92rem;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+#signally-overlay .stream__block p {
+    margin: 0;
+}
+
+#signally-overlay .stream__list {
+    min-height: 140px;
+    font-size: 0.92rem;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+#signally-overlay .followup__footer {
+    margin-top: 0.85rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+#signally-overlay .primary-btn {
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 999px;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: rgba(59, 130, 246, 0.22);
+    color: rgba(226, 232, 240, 0.92);
+    cursor: pointer;
+    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+#signally-overlay .primary-btn:hover {
+    background: rgba(59, 130, 246, 0.32);
+    border-color: rgba(148, 163, 184, 0.65);
+}
+
+#signally-overlay .primary-btn:active {
+    transform: translateY(1px);
+}

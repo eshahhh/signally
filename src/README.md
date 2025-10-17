@@ -1,0 +1,1 @@
+Go to [chrome://extensions](chrome://extensions), enable developer mode, click load unpacked and upload this folder 

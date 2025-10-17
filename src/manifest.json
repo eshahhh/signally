@@ -1,0 +1,33 @@
+{
+    "manifest_version": 3,
+    "name": "Signally Live Notes",
+    "description": "Preview build of the Signally popup that stays on-screen for meetings.",
+    "version": "0.1.0",
+    "action": {
+        "default_title": "Toggle Signally"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "permissions": [
+        "windows",
+        "scripting"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "contentScript.js"
+            ],
+            "css": [
+                "overlay.css"
+            ],
+            "run_at": "document_idle"
+        }
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ]
+}

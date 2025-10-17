@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signally</title>
+    <link rel="stylesheet" href="popup.css">
+    <script defer src="popup.js"></script>
+</head>
+
+<body>
+    <main class="panel">
+        <header class="panel__header">
+            <div class="panel__heading">
+                <div class="panel__brand">Signally</div>
+                <div class="panel__status">Monitoring · <span id="session-time">--:--</span></div>
+            </div>
+        </header>
+
+        <section class="panel__section" aria-live="polite">
+            <h2 class="section__title">Live Transcription</h2>
+            <div class="section__body stream__block" id="transcription-stream"></div>
+        </section>
+
+        <section class="panel__section" aria-live="polite">
+            <h2 class="section__title">Running Summary</h2>
+            <ul class="summary__list stream__list" id="summary-stream"></ul>
+        </section>
+
+        <section class="panel__section" aria-live="polite">
+            <h2 class="section__title">Suggested Follow-ups</h2>
+            <ol class="followup__list stream__list" id="followup-list"></ol>
+            <div class="followup__footer">
+                <button class="primary-btn" id="followups-btn" type="button">Generate follow-ups</button>
+            </div>
+        </section>
+    </main>
+</body>
+
+</html>
