@@ -1,27 +1,216 @@
 'use strict';
 
+const TOKEN_SERVER_URL = 'http://localhost:3000/token';
+
 let signallyWindowId = null;
-let isRecording = false;
+let transcriptionState = 'idle';
+let activeTabId = null;
+
+let offscreenDocumentExists = false;
+let isTranscribing = false;
+
+let currentTranscript = '';
+let transcriptionBuffer = [];
+
+function broadcastTranscriptionState(state, details = {}) {
+    transcriptionState = state;
+
+    const message = {
+        type: 'transcription-state-changed',
+        state: state,
+        details: details,
+        timestamp: Date.now()
+    };
+
+    if (signallyWindowId) {
+        chrome.runtime.sendMessage(message).catch(() => { });
+    }
+
+    if (activeTabId) {
+        chrome.tabs.sendMessage(activeTabId, {
+            ...message,
+            target: 'content'
+        }).catch(() => { });
+    }
+}
 
 async function ensureOffscreenDocument() {
+    if (offscreenDocumentExists) {
+        return true;
+    }
+
     const existingContexts = await chrome.runtime.getContexts({
         contextTypes: ['OFFSCREEN_DOCUMENT']
     });
 
-    const offscreenDocument = existingContexts.find(
-        (context) => context.contextType === 'OFFSCREEN_DOCUMENT'
-    );
-
-    if (offscreenDocument) {
-        isRecording = offscreenDocument.documentUrl.endsWith('#recording');
-        return;
+    if (existingContexts.length > 0) {
+        offscreenDocumentExists = true;
+        return true;
     }
 
     await chrome.offscreen.createDocument({
         url: 'offscreen.html',
         reasons: ['USER_MEDIA'],
-        justification: 'Recording audio from chrome.tabCapture API for transcription'
+        justification: 'Capture and transcribe tab audio using OpenAI Realtime API'
     });
+
+    offscreenDocumentExists = true;
+    return true;
+}
+
+async function startTranscription(tabId) {
+    if (isTranscribing) {
+        return;
+    }
+
+    broadcastTranscriptionState('connecting', { message: 'Connecting...' });
+
+    try {
+        await ensureOffscreenDocument();
+
+        const ephemeralKey = await fetchEphemeralToken();
+
+        const streamId = await chrome.tabCapture.getMediaStreamId({
+            targetTabId: tabId
+        });
+
+        const response = await chrome.runtime.sendMessage({
+            type: 'start-webrtc',
+            streamId: streamId,
+            ephemeralKey: ephemeralKey
+        });
+
+        if (response.success) {
+            isTranscribing = true;
+            broadcastTranscriptionState('recording', { message: 'Recording tab audio...' });
+        } else {
+            throw new Error(response.error || 'Failed to start WebRTC in offscreen document');
+        }
+
+    } catch (error) {
+        broadcastTranscriptionState('error', { message: error.message });
+    }
+}
+
+async function stopTranscription() {
+    if (offscreenDocumentExists) {
+        try {
+            await chrome.runtime.sendMessage({ type: 'stop-webrtc' });
+        } catch (error) { }
+    }
+
+    isTranscribing = false;
+    currentTranscript = '';
+    transcriptionBuffer = [];
+
+    broadcastTranscriptionState('idle', { message: 'Ready to record' });
+}
+
+async function fetchEphemeralToken() {
+    const response = await fetch(TOKEN_SERVER_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.error || `Token server error: ${response.status}`;
+        throw new Error(errorMsg);
+    }
+
+    const data = await response.json();
+
+    if (!data.value) {
+        throw new Error('Invalid token response from server');
+    }
+
+    return data.value;
+}
+
+function handleServerEvent(event) {
+    switch (event.type) {
+        case 'session.created':
+            break;
+
+        case 'conversation.item.input_audio_transcription.delta':
+            handleTranscriptionDelta(event);
+            break;
+
+        case 'conversation.item.input_audio_transcription.completed':
+            handleTranscriptionCompleted(event);
+            break;
+
+        case 'input_audio_buffer.committed':
+            break;
+
+        case 'error':
+            broadcastTranscriptionState('error', {
+                message: event.error?.message || 'Unknown server error'
+            });
+            break;
+
+        default:
+            break;
+    }
+}
+
+function handleTranscriptionDelta(event) {
+    const delta = event.delta || '';
+    currentTranscript += delta;
+
+    const message = {
+        type: 'transcription-delta',
+        data: {
+            delta: delta,
+            current: currentTranscript,
+            itemId: event.item_id
+        }
+    };
+
+    if (activeTabId) {
+        chrome.tabs.sendMessage(activeTabId, {
+            ...message,
+            target: 'content'
+        }).catch(() => { });
+    }
+
+    if (signallyWindowId) {
+        chrome.runtime.sendMessage(message).catch(() => { });
+    }
+}
+
+function handleTranscriptionCompleted(event) {
+    const transcript = event.transcript || '';
+
+    transcriptionBuffer.push({
+        itemId: event.item_id,
+        transcript: transcript,
+        timestamp: Date.now()
+    });
+
+    const message = {
+        type: 'transcription-completed',
+        data: {
+            transcript: transcript,
+            itemId: event.item_id,
+            timestamp: Date.now()
+        }
+    };
+
+    if (activeTabId) {
+        chrome.tabs.sendMessage(activeTabId, {
+            ...message,
+            target: 'content'
+        }).catch(() => { });
+    }
+
+    if (signallyWindowId) {
+        chrome.runtime.sendMessage(message).catch(() => { });
+    }
+
+    currentTranscript = '';
 }
 
 async function ensureSignallyWindow() {
@@ -51,71 +240,72 @@ chrome.action.onClicked.addListener(async (tab) => {
 
     const restrictedProtocols = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'edge-extension:'];
     if (restrictedProtocols.some(proto => tab.url.startsWith(proto))) {
-        console.warn('Signally cannot run on restricted pages:', tab.url);
         return;
     }
 
-    await ensureOffscreenDocument();
-
-    if (isRecording) {
-        chrome.runtime.sendMessage({
-            type: 'stop-recording',
-            target: 'offscreen'
-        });
-        isRecording = false;
-        console.log('Stopping recording...');
+    if (transcriptionState === 'recording') {
+        broadcastTranscriptionState('stopping');
+        stopTranscription();
+        activeTabId = null;
+    } else if (transcriptionState === 'idle' || transcriptionState === 'error') {
+        activeTabId = tab.id;
+        await startTranscription(tab.id);
+    } else {
         return;
     }
 
+    await injectAndToggleOverlay(tab.id);
+});
+
+async function injectAndToggleOverlay(tabId) {
     try {
-        const streamId = await chrome.tabCapture.getMediaStreamId({
-            targetTabId: tab.id
-        });
-
-        chrome.runtime.sendMessage({
-            type: 'start-recording',
-            target: 'offscreen',
-            data: streamId
-        });
-
-        isRecording = true;
-        console.log('Starting 10-second recording...');
-
-        setTimeout(() => {
-            isRecording = false;
-        }, 10000);
-
-    } catch (err) {
-        console.error('Failed to capture tab audio:', err);
-    }
-
-    try {
-        await chrome.tabs.sendMessage(tab.id, { type: 'SIGNALLY_TOGGLE_OVERLAY' });
+        await chrome.tabs.sendMessage(tabId, { type: 'SIGNALLY_TOGGLE_OVERLAY' });
     } catch (err) {
         try {
             await chrome.scripting.insertCSS({
-                target: { tabId: tab.id },
+                target: { tabId: tabId },
                 files: ['overlay.css']
             });
         } catch (cssErr) {
-            console.error('Unable to inject Signally styles:', cssErr);
             return;
         }
 
         try {
             await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
+                target: { tabId: tabId },
                 files: ['contentScript.js']
             });
-            await chrome.tabs.sendMessage(tab.id, { type: 'SIGNALLY_TOGGLE_OVERLAY' });
-        } catch (injectErr) {
-            console.error('Unable to toggle Signally overlay:', injectErr);
-        }
+
+            setTimeout(async () => {
+                try {
+                    await chrome.tabs.sendMessage(tabId, { type: 'SIGNALLY_TOGGLE_OVERLAY' });
+                } catch (toggleErr) { }
+            }, 100);
+        } catch (injectErr) { }
     }
-});
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message !== 'object') {
+        return;
+    }
+
+    if (message.type === 'offscreen-webrtc-ready') {
+        return;
+    }
+
+    if (message.type === 'offscreen-datachannel-ready') {
+        return;
+    }
+
+    if (message.type === 'offscreen-server-event') {
+        handleServerEvent(message.event);
+        return;
+    }
+
+    if (message.type === 'offscreen-error') {
+        broadcastTranscriptionState('error', { message: message.error });
+        isTranscribing = false;
         return;
     }
 
@@ -123,24 +313,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         (async () => {
             try {
                 await ensureSignallyWindow();
-                sendResponse({ ok: true });
-            } catch (err) {
-                console.error('Failed to launch Signally window:', err);
-                sendResponse({ ok: false, error: err instanceof Error ? err.message : String(err) });
+                sendResponse({ success: true });
+            } catch (error) {
+                sendResponse({ success: false, error: error.message });
             }
         })();
         return true;
     }
 
-    if (message.type === 'SIGNALLY_OPEN_OPTIONS') {
-        chrome.runtime.openOptionsPage();
-        return;
-    }
-
-    if (message.type === 'recording-error' && message.target === 'background') {
-        console.error('Recording error from offscreen:', message.error);
-        isRecording = false;
-        return;
+    if (message.type === 'SIGNALLY_GET_STATE') {
+        sendResponse({ state: transcriptionState });
+        return true;
     }
 });
 

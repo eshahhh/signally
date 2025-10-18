@@ -1,0 +1,23 @@
+{
+    "name": "signally-token-server",
+    "version": "1.0.0",
+    "description": "Token server for Signally extension - mints ephemeral OpenAI tokens",
+    "type": "module",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "node --watch server.js"
+    },
+    "keywords": [
+        "signally",
+        "openai",
+        "realtime-api"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^17.2.3",
+        "express": "^4.18.2"
+    }
+}

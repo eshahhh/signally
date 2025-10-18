@@ -143,8 +143,12 @@
     flex-direction: column;
     gap: 0.6rem;
     min-height: 160px;
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden;
     font-size: 0.92rem;
     color: rgba(226, 232, 240, 0.92);
+    padding-right: 0.5rem;
 }
 
 #signally-overlay .stream__block p {
@@ -153,6 +157,32 @@
 
 #signally-overlay .stream__list {
     min-height: 140px;
+    max-height: 180px;
+    overflow-y: auto;
+    overflow-x: hidden;
     font-size: 0.92rem;
     color: rgba(226, 232, 240, 0.92);
+    padding-right: 0.5rem;
+}
+
+#signally-overlay .stream__block::-webkit-scrollbar,
+#signally-overlay .stream__list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#signally-overlay .stream__block::-webkit-scrollbar-track,
+#signally-overlay .stream__list::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.3);
+    border-radius: 3px;
+}
+
+#signally-overlay .stream__block::-webkit-scrollbar-thumb,
+#signally-overlay .stream__list::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 3px;
+}
+
+#signally-overlay .stream__block::-webkit-scrollbar-thumb:hover,
+#signally-overlay .stream__list::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.6);
 }

@@ -124,6 +124,10 @@ body {
     flex-direction: column;
     gap: 0.6rem;
     min-height: 160px;
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.5rem;
 }
 
 .stream__block p {
@@ -132,4 +136,30 @@ body {
 
 .stream__list {
     min-height: 140px;
+    max-height: 180px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.5rem;
+}
+
+.stream__block::-webkit-scrollbar,
+.stream__list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.stream__block::-webkit-scrollbar-track,
+.stream__list::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.3);
+    border-radius: 3px;
+}
+
+.stream__block::-webkit-scrollbar-thumb,
+.stream__list::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 3px;
+}
+
+.stream__block::-webkit-scrollbar-thumb:hover,
+.stream__list::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.6);
 }

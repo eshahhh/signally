@@ -8,16 +8,17 @@
     let overlayState = {
         root: null,
         clock: null,
+        status: null,
         transcription: null,
         summary: null,
         followups: null,
-        optionsButton: null,
         popoutButton: null,
         closeButton: null
     };
 
     let overlayVisible = false;
     let overlayClockInterval = null;
+    let currentState = 'idle';
 
     function ensureOverlay() {
         if (overlayState.root) {
@@ -61,7 +62,8 @@
 
         const status = document.createElement('div');
         status.className = 'panel__status';
-        status.textContent = 'Monitoring · ';
+        status.id = 'signally-overlay-status';
+        status.textContent = 'Ready · ';
         const clock = document.createElement('span');
         clock.id = 'signally-overlay-clock';
         clock.textContent = '--:--';
@@ -71,17 +73,6 @@
         const actions = document.createElement('div');
         actions.className = 'panel__actions';
         header.appendChild(actions);
-
-        const optionsButton = document.createElement('button');
-        optionsButton.className = 'panel__icon-btn';
-        optionsButton.type = 'button';
-        optionsButton.title = 'Options';
-        optionsButton.setAttribute('aria-label', 'Options');
-        const optionsGlyph = document.createElement('span');
-        optionsGlyph.setAttribute('aria-hidden', 'true');
-        optionsGlyph.textContent = '⚙';
-        optionsButton.appendChild(optionsGlyph);
-        actions.appendChild(optionsButton);
 
         const popoutButton = document.createElement('button');
         popoutButton.className = 'panel__icon-btn';
@@ -153,10 +144,10 @@
         return {
             root,
             clock,
+            status,
             transcription: transcriptBody,
             summary: summaryList,
             followups: followupList,
-            optionsButton,
             popoutButton,
             closeButton
         };
@@ -167,13 +158,14 @@
             return;
         }
 
-        overlayState.optionsButton?.addEventListener('click', () => {
-            chrome.runtime.sendMessage({ type: 'SIGNALLY_OPEN_OPTIONS' });
-        });
         overlayState.popoutButton?.addEventListener('click', () => {
+            console.log('[Content] Opening popup window...');
             chrome.runtime.sendMessage({ type: 'SIGNALLY_OPEN_WINDOW' });
         });
-        overlayState.closeButton?.addEventListener('click', hideOverlay);
+        overlayState.closeButton?.addEventListener('click', () => {
+            console.log('[Content] Closing overlay');
+            hideOverlay();
+        });
     }
 
     function toggleOverlay() {
@@ -218,6 +210,47 @@
         overlayState.clock.textContent = `${hours}:${minutes}`;
     }
 
+    function updateStatus(state) {
+        if (!overlayState.status || !overlayState.clock) {
+            return;
+        }
+
+        console.log('[Content] Updating status to:', state);
+        currentState = state;
+
+        let statusText = '';
+
+        switch (state) {
+            case 'idle':
+                statusText = 'Ready';
+                break;
+            case 'connecting':
+                statusText = 'Connecting...';
+                break;
+            case 'recording':
+                statusText = 'Recording';
+                break;
+            case 'stopping':
+                statusText = 'Stopping...';
+                break;
+            case 'error':
+                statusText = 'Error';
+                break;
+            default:
+                statusText = 'Ready';
+        }
+
+        const clockText = overlayState.clock.textContent;
+        overlayState.status.innerHTML = `${statusText} · <span id="signally-overlay-clock">${clockText}</span>`;
+
+        const newClock = document.getElementById('signally-overlay-clock');
+        if (newClock) {
+            overlayState.clock = newClock;
+        }
+
+        console.log('[Content] Status updated');
+    }
+
     function startClock() {
         updateClock();
         if (overlayClockInterval) {
@@ -233,13 +266,90 @@
         }
     }
 
+    function updateTranscription(text, isComplete = false) {
+        if (!overlayState.transcription) {
+            console.warn('[Content] Transcription element not found');
+            return;
+        }
+
+        console.log('[Content] Updating transcription:', isComplete ? 'complete' : 'delta', text);
+
+        if (isComplete) {
+            const p = document.createElement('p');
+            p.textContent = text;
+            p.style.marginBottom = '0.5em';
+            overlayState.transcription.appendChild(p);
+
+            overlayState.transcription.scrollTop = overlayState.transcription.scrollHeight;
+        } else {
+            let currentP = overlayState.transcription.querySelector('.transcription-current');
+            if (!currentP) {
+                currentP = document.createElement('p');
+                currentP.className = 'transcription-current';
+                currentP.style.fontStyle = 'italic';
+                currentP.style.color = '#888';
+                overlayState.transcription.appendChild(currentP);
+            }
+            currentP.textContent = text;
+
+            overlayState.transcription.scrollTop = overlayState.transcription.scrollHeight;
+        }
+    }
+
+    function handleTranscriptionDelta(data) {
+        console.log('[Content] Received transcription delta:', data.delta);
+        updateTranscription(data.current, false);
+    }
+
+    function handleTranscriptionCompleted(data) {
+        console.log('[Content] Received completed transcription:', data.transcript);
+
+        const currentP = overlayState.transcription?.querySelector('.transcription-current');
+        if (currentP) {
+            currentP.remove();
+        }
+
+        updateTranscription(data.transcript, true);
+    }
+
     chrome.runtime.onMessage.addListener((message) => {
         if (!message || typeof message !== 'object') {
             return;
         }
 
-        if (message.type === 'SIGNALLY_TOGGLE_OVERLAY') {
-            toggleOverlay();
+        console.log('[Content] Received message:', message.type);
+
+        switch (message.type) {
+            case 'SIGNALLY_TOGGLE_OVERLAY':
+                console.log('[Content] Toggling overlay');
+                toggleOverlay();
+                break;
+
+            case 'transcription-state-changed':
+                if (message.target === 'content') {
+                    console.log('[Content] State changed:', message.state);
+                    updateStatus(message.state);
+                }
+                break;
+
+            case 'transcription-delta':
+                if (message.target === 'content' && message.data) {
+                    console.log('[Content] Transcription delta received');
+                    handleTranscriptionDelta(message.data);
+                }
+                break;
+
+            case 'transcription-completed':
+                if (message.target === 'content' && message.data) {
+                    console.log('[Content] Transcription completed');
+                    handleTranscriptionCompleted(message.data);
+                }
+                break;
+
+            default:
+                console.log('[Content] Unhandled message type:', message.type);
         }
     });
+
+    console.log('[Content] Signally content script loaded and ready');
 })();
