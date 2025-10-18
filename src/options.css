@@ -1,0 +1,217 @@
+:root {
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #e2e8f0;
+    background: transparent;
+}
+
+.options-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    min-height: 100vh;
+    padding: 1.25rem 1.5rem 2rem;
+    background: rgba(78, 79, 82, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(12px);
+}
+
+.options-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(226, 232, 240, 0.85);
+}
+
+.options-title {
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: 0.2em;
+}
+
+.icon-btn {
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(30, 41, 59, 0.55);
+    color: rgba(226, 232, 240, 0.88);
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.icon-btn:hover {
+    border-color: rgba(226, 232, 240, 0.55);
+}
+
+.icon-btn:active {
+    transform: translateY(1px);
+}
+
+.options-section {
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.section-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(148, 163, 184, 0.95);
+}
+
+.section-body {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: rgba(226, 232, 240, 0.92);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: rgba(226, 232, 240, 0.9);
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.95rem;
+    font-family: 'Courier New', monospace;
+    color: #e2e8f0;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    transition: border-color 120ms ease, background 120ms ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: rgba(59, 130, 246, 0.6);
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.form-input::placeholder {
+    color: rgba(148, 163, 184, 0.5);
+}
+
+.form-hint {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: rgba(148, 163, 184, 0.75);
+    line-height: 1.4;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.btn {
+    appearance: none;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.btn-primary {
+    background: rgba(59, 130, 246, 0.25);
+    color: rgba(226, 232, 240, 0.95);
+    flex: 1;
+}
+
+.btn-primary:hover {
+    background: rgba(59, 130, 246, 0.35);
+    border-color: rgba(148, 163, 184, 0.65);
+}
+
+.btn-primary:active {
+    transform: translateY(1px);
+}
+
+.btn-secondary {
+    background: rgba(71, 85, 105, 0.3);
+    color: rgba(226, 232, 240, 0.85);
+}
+
+.btn-secondary:hover {
+    background: rgba(71, 85, 105, 0.45);
+    border-color: rgba(148, 163, 184, 0.6);
+}
+
+.btn-secondary:active {
+    transform: translateY(1px);
+}
+
+.status-message {
+    display: none;
+    margin-top: 1rem;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.status-success {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    color: rgba(134, 239, 172, 0.95);
+}
+
+.status-error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: rgba(252, 165, 165, 0.95);
+}
+
+.summary-list,
+.followup-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stream-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 140px;
+}
+
+.stream-block p {
+    margin: 0;
+}

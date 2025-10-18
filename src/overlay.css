@@ -156,33 +156,3 @@
     font-size: 0.92rem;
     color: rgba(226, 232, 240, 0.92);
 }
-
-#signally-overlay .followup__footer {
-    margin-top: 0.85rem;
-    display: flex;
-    justify-content: flex-end;
-}
-
-#signally-overlay .primary-btn {
-    appearance: none;
-    border: 1px solid rgba(148, 163, 184, 0.4);
-    border-radius: 999px;
-    padding: 0.5rem 1.2rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    background: rgba(59, 130, 246, 0.22);
-    color: rgba(226, 232, 240, 0.92);
-    cursor: pointer;
-    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
-}
-
-#signally-overlay .primary-btn:hover {
-    background: rgba(59, 130, 246, 0.32);
-    border-color: rgba(148, 163, 184, 0.65);
-}
-
-#signally-overlay .primary-btn:active {
-    transform: translateY(1px);
-}

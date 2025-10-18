@@ -16,6 +16,11 @@
                 <div class="panel__brand">Signally</div>
                 <div class="panel__status">Monitoring · <span id="session-time">--:--</span></div>
             </div>
+            <div class="panel__actions">
+                <button class="panel__icon-btn" id="options-btn" type="button" title="Options" aria-label="Options">
+                    <span aria-hidden="true">⚙</span>
+                </button>
+            </div>
         </header>
 
         <section class="panel__section" aria-live="polite">
@@ -31,9 +36,6 @@
         <section class="panel__section" aria-live="polite">
             <h2 class="section__title">Suggested Follow-ups</h2>
             <ol class="followup__list stream__list" id="followup-list"></ol>
-            <div class="followup__footer">
-                <button class="primary-btn" id="followups-btn" type="button">Generate follow-ups</button>
-            </div>
         </section>
     </main>
 </body>

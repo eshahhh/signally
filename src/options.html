@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signally Options</title>
+    <link rel="stylesheet" href="options.css">
+    <script defer src="options.js"></script>
+</head>
+
+<body>
+    <main class="options-container">
+        <header class="options-header">
+            <h1 class="options-title">Signally Options</h1>
+        </header>
+
+        <section class="options-section">
+            <h2 class="section-title">OpenAI Configuration</h2>
+            <div class="form-group">
+                <label for="api-key" class="form-label">API Key</label>
+                <input type="password" id="api-key" class="form-input" placeholder="sk-...">
+                <p class="form-hint">Enter your OpenAI API key. It will be stored securely in your browser.</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" id="save-btn" class="primary-btn">Save Settings</button>
+                <button type="button" id="clear-btn" class="secondary-btn">Clear API Key</button>
+            </div>
+
+            <div id="status-message" class="status-message"></div>
+        </section>
+    </main>
+</body>
+
+</html>

@@ -1,6 +1,28 @@
 'use strict';
 
 let signallyWindowId = null;
+let isRecording = false;
+
+async function ensureOffscreenDocument() {
+    const existingContexts = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT']
+    });
+
+    const offscreenDocument = existingContexts.find(
+        (context) => context.contextType === 'OFFSCREEN_DOCUMENT'
+    );
+
+    if (offscreenDocument) {
+        isRecording = offscreenDocument.documentUrl.endsWith('#recording');
+        return;
+    }
+
+    await chrome.offscreen.createDocument({
+        url: 'offscreen.html',
+        reasons: ['USER_MEDIA'],
+        justification: 'Recording audio from chrome.tabCapture API for transcription'
+    });
+}
 
 async function ensureSignallyWindow() {
     if (signallyWindowId) {
@@ -31,6 +53,40 @@ chrome.action.onClicked.addListener(async (tab) => {
     if (restrictedProtocols.some(proto => tab.url.startsWith(proto))) {
         console.warn('Signally cannot run on restricted pages:', tab.url);
         return;
+    }
+
+    await ensureOffscreenDocument();
+
+    if (isRecording) {
+        chrome.runtime.sendMessage({
+            type: 'stop-recording',
+            target: 'offscreen'
+        });
+        isRecording = false;
+        console.log('Stopping recording...');
+        return;
+    }
+
+    try {
+        const streamId = await chrome.tabCapture.getMediaStreamId({
+            targetTabId: tab.id
+        });
+
+        chrome.runtime.sendMessage({
+            type: 'start-recording',
+            target: 'offscreen',
+            data: streamId
+        });
+
+        isRecording = true;
+        console.log('Starting 10-second recording...');
+
+        setTimeout(() => {
+            isRecording = false;
+        }, 10000);
+
+    } catch (err) {
+        console.error('Failed to capture tab audio:', err);
     }
 
     try {
@@ -74,6 +130,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         })();
         return true;
+    }
+
+    if (message.type === 'SIGNALLY_OPEN_OPTIONS') {
+        chrome.runtime.openOptionsPage();
+        return;
+    }
+
+    if (message.type === 'recording-error' && message.target === 'background') {
+        console.error('Recording error from offscreen:', message.error);
+        isRecording = false;
+        return;
     }
 });
 

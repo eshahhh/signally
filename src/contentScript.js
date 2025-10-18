@@ -5,76 +5,19 @@
         return;
     }
 
-    const TRANSCRIPT_SEGMENTS = [
-        { speaker: 'Alex', text: 'Thanks for joining. Today we are aligning on the Q4 launch milestones.' },
-        { speaker: 'Jamie', text: 'Marketing assets are on track and the landing page draft will be ready by Friday.' },
-        { speaker: 'Priya', text: 'Engineering still needs a final requirements handoff for the integration work.' },
-        { speaker: 'Noah', text: 'Customer success is preparing the enablement kit once timelines are locked.' }
-    ];
-
-    const SUMMARY_POINTS = [
-        'Launch date penciled in for November 18 pending integration confidence.',
-        'Design review scheduled for early next week with updated hero concepts.',
-        'API specs must be finalized before engineering signs off on the integration backlog.'
-    ];
-
-    const FOLLOWUP_SETS = [
-        [
-            'Share the latest API documentation with the engineering team.',
-            'Confirm creative asset deadlines with external partners.',
-            'Schedule a risk review focused on integration timelines.'
-        ],
-        [
-            'Prepare a customer comms draft announcing the beta window.',
-            'Sync with analytics to define launch KPIs and dashboards.',
-            'Block time with sales enablement for product walkthroughs.'
-        ],
-        [
-            'Confirm QA coverage for mobile and desktop experiences.',
-            'Collect feedback from the pilot cohort on onboarding flow gaps.',
-            'Outline contingency plan if marketing assets slip by a week.'
-        ]
-    ];
-
     let overlayState = {
         root: null,
         clock: null,
         transcription: null,
         summary: null,
         followups: null,
-        followupsButton: null,
+        optionsButton: null,
         popoutButton: null,
         closeButton: null
     };
 
     let overlayVisible = false;
-    let baseRenderToken = 0;
-    let followupRenderToken = 0;
     let overlayClockInterval = null;
-    let activeFollowupIndex = 0;
-
-    function randomDelay(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
-    function sleep(ms) {
-        return new Promise((resolve) => {
-            setTimeout(resolve, ms);
-        });
-    }
-
-    async function typeText(target, text, token, tokenResolver) {
-        for (const char of text) {
-            if (!overlayVisible || token !== tokenResolver()) {
-                return;
-            }
-            target.textContent += char;
-            await sleep(randomDelay(18, 42));
-            if (!overlayVisible || token !== tokenResolver()) {
-                return;
-            }
-        }
-    }
 
     function ensureOverlay() {
         if (overlayState.root) {
@@ -128,6 +71,17 @@
         const actions = document.createElement('div');
         actions.className = 'panel__actions';
         header.appendChild(actions);
+
+        const optionsButton = document.createElement('button');
+        optionsButton.className = 'panel__icon-btn';
+        optionsButton.type = 'button';
+        optionsButton.title = 'Options';
+        optionsButton.setAttribute('aria-label', 'Options');
+        const optionsGlyph = document.createElement('span');
+        optionsGlyph.setAttribute('aria-hidden', 'true');
+        optionsGlyph.textContent = '⚙';
+        optionsButton.appendChild(optionsGlyph);
+        actions.appendChild(optionsButton);
 
         const popoutButton = document.createElement('button');
         popoutButton.className = 'panel__icon-btn';
@@ -196,24 +150,13 @@
         followupList.id = 'signally-followups';
         followupSection.appendChild(followupList);
 
-        const followupFooter = document.createElement('div');
-        followupFooter.className = 'followup__footer';
-        followupSection.appendChild(followupFooter);
-
-        const followupButton = document.createElement('button');
-        followupButton.className = 'primary-btn';
-        followupButton.id = 'signally-followups-btn';
-        followupButton.type = 'button';
-        followupButton.textContent = 'Generate follow-ups';
-        followupFooter.appendChild(followupButton);
-
         return {
             root,
             clock,
             transcription: transcriptBody,
             summary: summaryList,
             followups: followupList,
-            followupsButton: followupButton,
+            optionsButton,
             popoutButton,
             closeButton
         };
@@ -224,7 +167,9 @@
             return;
         }
 
-        overlayState.followupsButton?.addEventListener('click', handleGenerateFollowups);
+        overlayState.optionsButton?.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ type: 'SIGNALLY_OPEN_OPTIONS' });
+        });
         overlayState.popoutButton?.addEventListener('click', () => {
             chrome.runtime.sendMessage({ type: 'SIGNALLY_OPEN_WINDOW' });
         });
@@ -248,14 +193,9 @@
             return;
         }
 
-        overlayState.transcription.textContent = '';
-        overlayState.summary.textContent = '';
-        overlayState.followups.textContent = '';
-
         overlayState.root.classList.remove('signally-hidden');
         overlayVisible = true;
         startClock();
-        startStreaming();
     }
 
     function hideOverlay() {
@@ -266,8 +206,6 @@
         overlayVisible = false;
         overlayState.root.classList.add('signally-hidden');
         stopClock();
-        baseRenderToken += 1;
-        followupRenderToken += 1;
     }
 
     function updateClock() {
@@ -293,124 +231,6 @@
             clearInterval(overlayClockInterval);
             overlayClockInterval = null;
         }
-    }
-
-    async function streamTranscription(token) {
-        const container = overlayState.transcription;
-        if (!container) {
-            return;
-        }
-        container.textContent = '';
-
-        for (const segment of TRANSCRIPT_SEGMENTS) {
-            if (!overlayVisible || token !== baseRenderToken) {
-                return;
-            }
-
-            const line = document.createElement('p');
-            const speaker = document.createElement('strong');
-            speaker.textContent = `${segment.speaker}: `;
-            line.appendChild(speaker);
-            const textNode = document.createTextNode('');
-            line.appendChild(textNode);
-            container.appendChild(line);
-
-            await typeText(textNode, segment.text, token, () => baseRenderToken);
-            if (!overlayVisible || token !== baseRenderToken) {
-                return;
-            }
-
-            await sleep(randomDelay(220, 480));
-        }
-    }
-
-    async function streamSummary(token) {
-        const container = overlayState.summary;
-        if (!container) {
-            return;
-        }
-        container.textContent = '';
-
-        for (const point of SUMMARY_POINTS) {
-            if (!overlayVisible || token !== baseRenderToken) {
-                return;
-            }
-
-            const item = document.createElement('li');
-            container.appendChild(item);
-            await typeText(item, point, token, () => baseRenderToken);
-            if (!overlayVisible || token !== baseRenderToken) {
-                return;
-            }
-
-            await sleep(randomDelay(260, 520));
-        }
-    }
-
-    async function streamFollowups(token, followupIndex) {
-        const container = overlayState.followups;
-        if (!container) {
-            return;
-        }
-
-        const followups = FOLLOWUP_SETS[followupIndex] ?? FOLLOWUP_SETS[0];
-        container.textContent = '';
-
-        for (const itemText of followups) {
-            if (!overlayVisible || token !== followupRenderToken) {
-                return;
-            }
-
-            const item = document.createElement('li');
-            container.appendChild(item);
-            await typeText(item, itemText, token, () => followupRenderToken);
-            if (!overlayVisible || token !== followupRenderToken) {
-                return;
-            }
-
-            await sleep(randomDelay(240, 460));
-        }
-    }
-
-    function pickNextFollowupIndex() {
-        if (FOLLOWUP_SETS.length <= 1) {
-            return 0;
-        }
-
-        let candidate = activeFollowupIndex;
-        while (candidate === activeFollowupIndex) {
-            candidate = Math.floor(Math.random() * FOLLOWUP_SETS.length);
-        }
-        return candidate;
-    }
-
-    async function startStreaming() {
-        baseRenderToken += 1;
-        const token = baseRenderToken;
-
-        await streamTranscription(token);
-        if (!overlayVisible || token !== baseRenderToken) {
-            return;
-        }
-
-        await streamSummary(token);
-        if (!overlayVisible || token !== baseRenderToken) {
-            return;
-        }
-
-        followupRenderToken += 1;
-        activeFollowupIndex = 0;
-        await streamFollowups(followupRenderToken, activeFollowupIndex);
-    }
-
-    function handleGenerateFollowups() {
-        if (!overlayVisible) {
-            return;
-        }
-
-        followupRenderToken += 1;
-        activeFollowupIndex = pickNextFollowupIndex();
-        streamFollowups(followupRenderToken, activeFollowupIndex);
     }
 
     chrome.runtime.onMessage.addListener((message) => {
