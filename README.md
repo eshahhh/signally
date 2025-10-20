@@ -21,9 +21,9 @@ Now it works as a general summarizer that also helps with intelligent follow up 
 The extension also works as a hidden meeting note-taker as the final summary can be exported and downloaded at the end for later referral to meeting notes
 
 # Demo
-Here's a demo of the fully working extension in its ~~final~~ submission-ready form:
+Click the image to view the demo of the fully working extension in its ~~final~~ submission-ready form:
 
-![video](https://hc-cdn.hel1.your-objectstorage.com/s/v3/503a5fa7b854e6bf4ca0393ae97ab1d768a0db91_final.mp4)
+[![Watch the demo](./devlogs/screenshot.png)](https://hc-cdn.hel1.your-objectstorage.com/s/v3/503a5fa7b854e6bf4ca0393ae97ab1d768a0db91_final.mp4)
 
 Here's the summary of the video that got generated:
 ```plaintext
