@@ -15,6 +15,7 @@ const cancelSettingsBtn = document.getElementById('cancel-settings');
 let clockIntervalId = null;
 let currentState = 'idle';
 let settingsVisible = false;
+let summaryLog = [];
 
 function updateSessionClock() {
     const now = new Date();
@@ -120,6 +121,12 @@ function handleSummaryGenerated(data) {
     }
 
     console.log('[Popup] Received summary:', data.summary);
+
+    // Add to summary log
+    summaryLog.push({
+        text: data.summary,
+        timestamp: data.timestamp || Date.now()
+    });
 
     const li = document.createElement('li');
     li.textContent = data.summary;
@@ -232,6 +239,100 @@ function cancelSettings() {
     toggleSettings();
 }
 
+async function startRecording() {
+    try {
+        const result = await chrome.storage.sync.get(['openaiApiKey']);
+        if (!result.openaiApiKey) {
+            alert('⚠️ Please set your OpenAI API key in Settings first!');
+            toggleSettings();
+            return;
+        }
+    } catch (error) {
+        console.error('[Popup] Error checking API key:', error);
+        alert('Error checking API key');
+        return;
+    }
+
+    console.log('[Popup] Requesting to start recording...');
+
+    summaryLog = [];
+    if (summaryList) {
+        summaryList.innerHTML = '';
+    }
+    if (transcriptionStream) {
+        transcriptionStream.innerHTML = '';
+    }
+    if (followUpList) {
+        followUpList.innerHTML = '';
+    }
+
+    chrome.runtime.sendMessage({
+        type: 'START_RECORDING_REQUEST'
+    }, (response) => {
+        if (response?.success) {
+            updateRecordingButtons(true);
+        } else {
+            alert(response?.error || 'Failed to start recording');
+        }
+    });
+}
+
+async function stopRecording() {
+    console.log('[Popup] Requesting to stop recording...');
+
+    chrome.runtime.sendMessage({
+        type: 'STOP_RECORDING_REQUEST'
+    }, (response) => {
+        if (response?.success) {
+            updateRecordingButtons(false);
+        } else {
+            alert(response?.error || 'Failed to stop recording');
+        }
+    });
+}
+
+function updateRecordingButtons(isRecording) {
+    const startBtn = document.getElementById('start-record-btn');
+    const stopBtn = document.getElementById('stop-record-btn');
+
+    if (startBtn) {
+        startBtn.disabled = isRecording;
+    }
+    if (stopBtn) {
+        stopBtn.disabled = !isRecording;
+    }
+}
+
+function exportSummary() {
+    if (summaryLog.length === 0) {
+        alert('No summary to export yet');
+        return;
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `signally-summary-${timestamp}.txt`;
+
+    let content = 'Signally Session Summary\n';
+    content += '========================\n\n';
+    content += `Generated: ${new Date().toLocaleString()}\n\n`;
+    content += 'Summary Points:\n';
+    content += '---------------\n\n';
+
+    summaryLog.forEach((item, index) => {
+        content += `${index + 1}. ${item.text}\n\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    console.log('[Popup] Summary exported successfully');
+}
+
 chrome.runtime.onMessage.addListener((message) => {
     if (!message || typeof message !== 'object') {
         return;
@@ -242,36 +343,36 @@ chrome.runtime.onMessage.addListener((message) => {
     switch (message.type) {
         case 'transcription-state-changed':
             updateStatusUI(message.state, message.details);
+
+            if (message.state === 'recording') {
+                updateRecordingButtons(true);
+            } else if (message.state === 'idle' || message.state === 'error') {
+                updateRecordingButtons(false);
+            }
+
+            if (message.state === 'error' && message.details?.message) {
+                console.error('[Popup] Error:', message.details.message);
+            }
             break;
 
         case 'transcription-delta':
-            if (message.data) {
-                handleTranscriptionDelta(message.data);
-            }
+            handleTranscriptionDelta(message.data);
             break;
 
         case 'transcription-completed':
-            if (message.data) {
-                handleTranscriptionCompleted(message.data);
-            }
+            handleTranscriptionCompleted(message.data);
             break;
 
         case 'summary-generated':
-            if (message.data) {
-                handleSummaryGenerated(message.data);
-            }
+            handleSummaryGenerated(message.data);
             break;
 
         case 'followup-questions-generated':
-            if (message.data) {
-                handleFollowUpQuestions(message.data);
-            }
+            handleFollowUpQuestions(message.data);
             break;
 
         case 'summary-error':
-            if (message.data) {
-                console.error('[Popup] Summary error:', message.data.message);
-            }
+            console.error('[Popup] Summary error:', message.data?.message);
             break;
 
         default:
@@ -287,6 +388,22 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsBtn.addEventListener('click', toggleSettings);
     saveApiKeyBtn.addEventListener('click', saveApiKey);
     cancelSettingsBtn.addEventListener('click', cancelSettings);
+
+    const startRecordBtn = document.getElementById('start-record-btn');
+    const stopRecordBtn = document.getElementById('stop-record-btn');
+    const exportBtn = document.getElementById('export-summary-btn');
+
+    if (startRecordBtn) {
+        startRecordBtn.addEventListener('click', startRecording);
+    }
+
+    if (stopRecordBtn) {
+        stopRecordBtn.addEventListener('click', stopRecording);
+    }
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportSummary);
+    }
 
     apiKeyInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {

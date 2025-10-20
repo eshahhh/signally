@@ -39,10 +39,7 @@ function broadcastTranscriptionState(state, details = {}) {
     }
 
     if (activeTabId) {
-        chrome.tabs.sendMessage(activeTabId, {
-            ...message,
-            target: 'content'
-        }).catch(() => { });
+        chrome.tabs.sendMessage(activeTabId, message).catch(() => { });
     }
 }
 
@@ -72,6 +69,21 @@ async function ensureOffscreenDocument() {
 
 async function startTranscription(tabId) {
     if (isTranscribing) {
+        return;
+    }
+
+    try {
+        const result = await chrome.storage.sync.get(['openaiApiKey']);
+        if (!result.openaiApiKey) {
+            broadcastTranscriptionState('error', {
+                message: 'OpenAI API key not set. Please configure it in Settings.'
+            });
+            return;
+        }
+    } catch (error) {
+        broadcastTranscriptionState('error', {
+            message: 'Failed to check API key. Please try again.'
+        });
         return;
     }
 
@@ -187,10 +199,7 @@ function handleTranscriptionDelta(event) {
     };
 
     if (activeTabId) {
-        chrome.tabs.sendMessage(activeTabId, {
-            ...message,
-            target: 'content'
-        }).catch(() => { });
+        chrome.tabs.sendMessage(activeTabId, message).catch(() => { });
     }
 
     if (signallyWindowId) {
@@ -223,10 +232,7 @@ function handleTranscriptionCompleted(event) {
     };
 
     if (activeTabId) {
-        chrome.tabs.sendMessage(activeTabId, {
-            ...message,
-            target: 'content'
-        }).catch(() => { });
+        chrome.tabs.sendMessage(activeTabId, message).catch(() => { });
     }
 
     if (signallyWindowId) {
@@ -266,10 +272,7 @@ async function generateAndBroadcastSummary() {
             };
 
             if (activeTabId) {
-                chrome.tabs.sendMessage(activeTabId, {
-                    ...errorMessage,
-                    target: 'content'
-                }).catch(() => { });
+                chrome.tabs.sendMessage(activeTabId, errorMessage).catch(() => { });
             }
 
             if (signallyWindowId) {
@@ -291,10 +294,7 @@ async function generateAndBroadcastSummary() {
         };
 
         if (activeTabId) {
-            chrome.tabs.sendMessage(activeTabId, {
-                ...summaryMessage,
-                target: 'content'
-            }).catch(() => { });
+            chrome.tabs.sendMessage(activeTabId, summaryMessage).catch(() => { });
         }
 
         if (signallyWindowId) {
@@ -310,10 +310,7 @@ async function generateAndBroadcastSummary() {
         };
 
         if (activeTabId) {
-            chrome.tabs.sendMessage(activeTabId, {
-                ...followUpMessage,
-                target: 'content'
-            }).catch(() => { });
+            chrome.tabs.sendMessage(activeTabId, followUpMessage).catch(() => { });
         }
 
         if (signallyWindowId) {
@@ -332,10 +329,7 @@ async function generateAndBroadcastSummary() {
         };
 
         if (activeTabId) {
-            chrome.tabs.sendMessage(activeTabId, {
-                ...errorMessage,
-                target: 'content'
-            }).catch(() => { });
+            chrome.tabs.sendMessage(activeTabId, errorMessage).catch(() => { });
         }
 
         if (signallyWindowId) {
@@ -371,17 +365,6 @@ chrome.action.onClicked.addListener(async (tab) => {
 
     const restrictedProtocols = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'edge-extension:'];
     if (restrictedProtocols.some(proto => tab.url.startsWith(proto))) {
-        return;
-    }
-
-    if (transcriptionState === 'recording') {
-        broadcastTranscriptionState('stopping');
-        stopTranscription();
-        activeTabId = null;
-    } else if (transcriptionState === 'idle' || transcriptionState === 'error') {
-        activeTabId = tab.id;
-        await startTranscription(tab.id);
-    } else {
         return;
     }
 
@@ -462,6 +445,59 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             summarizer.loadApiKey();
             console.log('[Background] API key reloaded in summarizer');
         }
+        return true;
+    }
+
+    if (message.type === 'START_RECORDING_REQUEST') {
+        (async () => {
+            try {
+                const result = await chrome.storage.sync.get(['openaiApiKey']);
+                if (!result.openaiApiKey) {
+                    sendResponse({
+                        success: false,
+                        error: '⚠️ OpenAI API key not set. Please configure it in Settings.'
+                    });
+                    return;
+                }
+
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                if (!tab?.id) {
+                    sendResponse({ success: false, error: 'No active tab found' });
+                    return;
+                }
+
+                if (isTranscribing) {
+                    sendResponse({ success: false, error: 'Already recording' });
+                    return;
+                }
+
+                activeTabId = tab.id;
+                await startTranscription(tab.id);
+                sendResponse({ success: true });
+            } catch (error) {
+                console.error('[Background] Error starting recording:', error);
+                sendResponse({ success: false, error: error.message });
+            }
+        })();
+        return true;
+    }
+
+    if (message.type === 'STOP_RECORDING_REQUEST') {
+        (async () => {
+            try {
+                if (!isTranscribing) {
+                    sendResponse({ success: false, error: 'Not currently recording' });
+                    return;
+                }
+
+                await stopTranscription();
+                activeTabId = null;
+                sendResponse({ success: true });
+            } catch (error) {
+                console.error('[Background] Error stopping recording:', error);
+                sendResponse({ success: false, error: error.message });
+            }
+        })();
         return true;
     }
 });

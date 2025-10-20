@@ -17,7 +17,7 @@
                 <div class="panel__status">Ready · <span id="session-time">--:--</span></div>
             </div>
             <button class="settings-btn" id="settings-btn" title="Settings" aria-label="Settings">
-                ⚙️
+                { }
             </button>
         </header>
 
@@ -34,6 +34,15 @@
                 <p class="settings__info">
                     Your API key is stored securely in your browser and never shared.
                 </p>
+            </div>
+        </section>
+
+        <section class="panel__section panel__section--controls">
+            <h2 class="section__title">Recording Controls</h2>
+            <div class="controls__body">
+                <button id="start-record-btn" class="controls__btn controls__btn--start">START RECORDING</button>
+                <button id="stop-record-btn" class="controls__btn controls__btn--stop" disabled>STOP RECORDING</button>
+                <button id="export-summary-btn" class="controls__btn controls__btn--export">EXPORT SUMMARY</button>
             </div>
         </section>
 
