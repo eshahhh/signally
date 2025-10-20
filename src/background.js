@@ -1,5 +1,7 @@
 'use strict';
 
+import Summarizer from './summarizer.js';
+
 const TOKEN_SERVER_URL = 'http://localhost:3000/token';
 
 let signallyWindowId = null;
@@ -11,6 +13,16 @@ let isTranscribing = false;
 
 let currentTranscript = '';
 let transcriptionBuffer = [];
+
+let summarizer = null;
+
+function initializeSummarizer() {
+    if (!summarizer) {
+        summarizer = new Summarizer();
+        console.log('[Background] Summarizer initialized');
+    }
+    return summarizer;
+}
 
 function broadcastTranscriptionState(state, details = {}) {
     transcriptionState = state;
@@ -103,6 +115,11 @@ async function stopTranscription() {
     currentTranscript = '';
     transcriptionBuffer = [];
 
+    if (summarizer) {
+        summarizer.reset();
+        console.log('[Background] Summarizer reset for next session');
+    }
+
     broadcastTranscriptionState('idle', { message: 'Ready to record' });
 }
 
@@ -184,6 +201,12 @@ function handleTranscriptionDelta(event) {
 function handleTranscriptionCompleted(event) {
     const transcript = event.transcript || '';
 
+    console.log('[Background] ===== Transcription Completed =====');
+    console.log('[Background] Item ID:', event.item_id);
+    console.log('[Background] Transcript:', transcript);
+    console.log('[Background] Transcript length:', transcript.length);
+    console.log('[Background] ========================================');
+
     transcriptionBuffer.push({
         itemId: event.item_id,
         transcript: transcript,
@@ -211,6 +234,114 @@ function handleTranscriptionCompleted(event) {
     }
 
     currentTranscript = '';
+
+    const sum = initializeSummarizer();
+    const shouldSummarize = sum.addTranscription(transcript);
+
+    console.log('[Background] Should summarize?', shouldSummarize);
+    console.log('[Background] Buffer size:', transcriptionBuffer.length);
+
+    if (shouldSummarize) {
+        console.log('[Background] Generating summary...');
+        generateAndBroadcastSummary();
+    }
+}
+
+async function generateAndBroadcastSummary() {
+    const sum = initializeSummarizer();
+
+    try {
+        console.log('[Background] Starting summary generation...');
+        const result = await sum.generateSummary();
+
+        if (!result) {
+            console.warn('[Background] Failed to generate summary - no result returned');
+
+            const errorMessage = {
+                type: 'summary-error',
+                data: {
+                    message: 'Failed to generate summary. The API may be overloaded or the request was too large.',
+                    timestamp: Date.now()
+                }
+            };
+
+            if (activeTabId) {
+                chrome.tabs.sendMessage(activeTabId, {
+                    ...errorMessage,
+                    target: 'content'
+                }).catch(() => { });
+            }
+
+            if (signallyWindowId) {
+                chrome.runtime.sendMessage(errorMessage).catch(() => { });
+            }
+
+            return;
+        }
+
+        console.log('[Background] Summary generated:', result.summary);
+        console.log('[Background] Follow-up questions:', result.followUpQuestions);
+
+        const summaryMessage = {
+            type: 'summary-generated',
+            data: {
+                summary: result.summary,
+                timestamp: Date.now()
+            }
+        };
+
+        if (activeTabId) {
+            chrome.tabs.sendMessage(activeTabId, {
+                ...summaryMessage,
+                target: 'content'
+            }).catch(() => { });
+        }
+
+        if (signallyWindowId) {
+            chrome.runtime.sendMessage(summaryMessage).catch(() => { });
+        }
+
+        const followUpMessage = {
+            type: 'followup-questions-generated',
+            data: {
+                questions: result.followUpQuestions,
+                timestamp: Date.now()
+            }
+        };
+
+        if (activeTabId) {
+            chrome.tabs.sendMessage(activeTabId, {
+                ...followUpMessage,
+                target: 'content'
+            }).catch(() => { });
+        }
+
+        if (signallyWindowId) {
+            chrome.runtime.sendMessage(followUpMessage).catch(() => { });
+        }
+
+    } catch (error) {
+        console.error('[Background] Error generating summary:', error);
+
+        const errorMessage = {
+            type: 'summary-error',
+            data: {
+                message: `Summary generation error: ${error.message}`,
+                timestamp: Date.now()
+            }
+        };
+
+        if (activeTabId) {
+            chrome.tabs.sendMessage(activeTabId, {
+                ...errorMessage,
+                target: 'content'
+            }).catch(() => { });
+        }
+
+        if (signallyWindowId) {
+            chrome.runtime.sendMessage(errorMessage).catch(() => { });
+        }
+    }
 }
 
 async function ensureSignallyWindow() {
@@ -323,6 +454,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === 'SIGNALLY_GET_STATE') {
         sendResponse({ state: transcriptionState });
+        return true;
+    }
+
+    if (message.type === 'RELOAD_API_KEY') {
+        if (summarizer) {
+            summarizer.loadApiKey();
+            console.log('[Background] API key reloaded in summarizer');
+        }
         return true;
     }
 });

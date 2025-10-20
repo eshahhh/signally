@@ -3,9 +3,18 @@
 const sessionTimeDisplay = document.getElementById('session-time');
 const statusDisplay = document.querySelector('.panel__status');
 const transcriptionStream = document.getElementById('transcription-stream');
+const summaryList = document.getElementById('summary-stream');
+const followUpList = document.getElementById('followup-list');
+
+const settingsBtn = document.getElementById('settings-btn');
+const settingsSection = document.getElementById('settings-section');
+const apiKeyInput = document.getElementById('api-key-input');
+const saveApiKeyBtn = document.getElementById('save-api-key');
+const cancelSettingsBtn = document.getElementById('cancel-settings');
 
 let clockIntervalId = null;
 let currentState = 'idle';
+let settingsVisible = false;
 
 function updateSessionClock() {
     const now = new Date();
@@ -104,6 +113,52 @@ function handleTranscriptionCompleted(data) {
     updateTranscription(data.transcript, true);
 }
 
+function handleSummaryGenerated(data) {
+    if (!summaryList) {
+        console.warn('[Popup] Summary list element not found');
+        return;
+    }
+
+    console.log('[Popup] Received summary:', data.summary);
+
+    const li = document.createElement('li');
+    li.textContent = data.summary;
+    li.style.marginBottom = '0.75em';
+    li.style.paddingLeft = '1em';
+    li.style.position = 'relative';
+
+    const bullet = document.createElement('span');
+    bullet.textContent = '•';
+    bullet.style.position = 'absolute';
+    bullet.style.left = '0';
+    bullet.style.color = '#64748b';
+    li.prepend(bullet);
+
+    summaryList.appendChild(li);
+    summaryList.scrollTop = summaryList.scrollHeight;
+}
+
+function handleFollowUpQuestions(data) {
+    if (!followUpList) {
+        console.warn('[Popup] Follow-up list element not found');
+        return;
+    }
+
+    console.log('[Popup] Received follow-up questions:', data.questions);
+
+    followUpList.innerHTML = '';
+
+    data.questions.forEach((question, index) => {
+        const li = document.createElement('li');
+        li.textContent = question;
+        li.style.marginBottom = '0.75em';
+        li.style.paddingLeft = '0.5em';
+        followUpList.appendChild(li);
+    });
+
+    followUpList.scrollTop = followUpList.scrollHeight;
+}
+
 async function initializeState() {
     console.log('[Popup] Requesting current transcription state...');
     try {
@@ -115,6 +170,66 @@ async function initializeState() {
     } catch (error) {
         console.error('[Popup] Failed to get state:', error);
     }
+
+    await loadApiKeyStatus();
+}
+
+async function loadApiKeyStatus() {
+    try {
+        const result = await chrome.storage.sync.get(['openaiApiKey']);
+        if (result.openaiApiKey) {
+            apiKeyInput.value = '••••••••••••••••';
+            console.log('[Popup] API key loaded (masked)');
+        } else {
+            console.log('[Popup] No API key found');
+        }
+    } catch (error) {
+        console.error('[Popup] Error loading API key:', error);
+    }
+}
+
+function toggleSettings() {
+    settingsVisible = !settingsVisible;
+    if (settingsVisible) {
+        settingsSection.style.display = 'flex';
+    } else {
+        settingsSection.style.display = 'none';
+    }
+}
+
+async function saveApiKey() {
+    const apiKey = apiKeyInput.value.trim();
+
+    if (!apiKey) {
+        alert('Please enter an API key');
+        return;
+    }
+
+    if (apiKey === '••••••••••••••••') {
+        console.log('[Popup] Masked value detected, not saving');
+        toggleSettings();
+        return;
+    }
+
+    try {
+        await chrome.storage.sync.set({ openaiApiKey: apiKey });
+        console.log('[Popup] API key saved successfully');
+
+        chrome.runtime.sendMessage({ type: 'RELOAD_API_KEY' });
+
+        apiKeyInput.value = '••••••••••••••••';
+
+        alert('API key saved successfully!');
+        toggleSettings();
+    } catch (error) {
+        console.error('[Popup] Error saving API key:', error);
+        alert('Failed to save API key. Please try again.');
+    }
+}
+
+function cancelSettings() {
+    loadApiKeyStatus();
+    toggleSettings();
 }
 
 chrome.runtime.onMessage.addListener((message) => {
@@ -141,6 +256,24 @@ chrome.runtime.onMessage.addListener((message) => {
             }
             break;
 
+        case 'summary-generated':
+            if (message.data) {
+                handleSummaryGenerated(message.data);
+            }
+            break;
+
+        case 'followup-questions-generated':
+            if (message.data) {
+                handleFollowUpQuestions(message.data);
+            }
+            break;
+
+        case 'summary-error':
+            if (message.data) {
+                console.error('[Popup] Summary error:', message.data.message);
+            }
+            break;
+
         default:
             console.log('[Popup] Unhandled message type:', message.type);
     }
@@ -150,6 +283,22 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('[Popup] Popup loaded');
     startClock();
     initializeState();
+
+    settingsBtn.addEventListener('click', toggleSettings);
+    saveApiKeyBtn.addEventListener('click', saveApiKey);
+    cancelSettingsBtn.addEventListener('click', cancelSettings);
+
+    apiKeyInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            saveApiKey();
+        }
+    });
+
+    apiKeyInput.addEventListener('focus', () => {
+        if (apiKeyInput.value === '••••••••••••••••') {
+            apiKeyInput.value = '';
+        }
+    });
 });
 
 console.log('[Popup] Signally popup script loaded');

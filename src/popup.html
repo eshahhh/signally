@@ -16,7 +16,26 @@
                 <div class="panel__brand">Signally</div>
                 <div class="panel__status">Ready · <span id="session-time">--:--</span></div>
             </div>
+            <button class="settings-btn" id="settings-btn" title="Settings" aria-label="Settings">
+                ⚙️
+            </button>
         </header>
+
+        <section class="panel__section panel__section--settings" id="settings-section" style="display: none;">
+            <h2 class="section__title">Settings</h2>
+            <div class="settings__body">
+                <label for="api-key-input" class="settings__label">OpenAI API Key:</label>
+                <input type="password" id="api-key-input" class="settings__input" placeholder="sk-..."
+                    autocomplete="off" />
+                <div class="settings__actions">
+                    <button id="save-api-key" class="settings__btn settings__btn--primary">Save</button>
+                    <button id="cancel-settings" class="settings__btn settings__btn--secondary">Cancel</button>
+                </div>
+                <p class="settings__info">
+                    Your API key is stored securely in your browser and never shared.
+                </p>
+            </div>
+        </section>
 
         <section class="panel__section" aria-live="polite">
             <h2 class="section__title">Live Transcription</h2>

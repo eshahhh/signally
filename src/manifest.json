@@ -7,7 +7,8 @@
         "default_title": "Toggle Signally"
     },
     "background": {
-        "service_worker": "background.js"
+        "service_worker": "background.js",
+        "type": "module"
     },
     "permissions": [
         "windows",

@@ -312,6 +312,52 @@
         updateTranscription(data.transcript, true);
     }
 
+    function handleSummaryGenerated(data) {
+        if (!overlayState.summary) {
+            console.warn('[Content] Summary element not found');
+            return;
+        }
+
+        console.log('[Content] Received summary:', data.summary);
+
+        const li = document.createElement('li');
+        li.textContent = data.summary;
+        li.style.marginBottom = '0.75em';
+        li.style.paddingLeft = '1em';
+        li.style.position = 'relative';
+
+        const bullet = document.createElement('span');
+        bullet.textContent = '•';
+        bullet.style.position = 'absolute';
+        bullet.style.left = '0';
+        bullet.style.color = '#888';
+        li.prepend(bullet);
+
+        overlayState.summary.appendChild(li);
+        overlayState.summary.scrollTop = overlayState.summary.scrollHeight;
+    }
+
+    function handleFollowUpQuestions(data) {
+        if (!overlayState.followups) {
+            console.warn('[Content] Follow-up list element not found');
+            return;
+        }
+
+        console.log('[Content] Received follow-up questions:', data.questions);
+
+        overlayState.followups.innerHTML = '';
+
+        data.questions.forEach((question, index) => {
+            const li = document.createElement('li');
+            li.textContent = question;
+            li.style.marginBottom = '0.75em';
+            li.style.paddingLeft = '0.5em';
+            overlayState.followups.appendChild(li);
+        });
+
+        overlayState.followups.scrollTop = overlayState.followups.scrollHeight;
+    }
+
     chrome.runtime.onMessage.addListener((message) => {
         if (!message || typeof message !== 'object') {
             return;
@@ -343,6 +389,26 @@
                 if (message.target === 'content' && message.data) {
                     console.log('[Content] Transcription completed');
                     handleTranscriptionCompleted(message.data);
+                }
+                break;
+
+            case 'summary-generated':
+                if (message.target === 'content' && message.data) {
+                    console.log('[Content] Summary generated');
+                    handleSummaryGenerated(message.data);
+                }
+                break;
+
+            case 'followup-questions-generated':
+                if (message.target === 'content' && message.data) {
+                    console.log('[Content] Follow-up questions generated');
+                    handleFollowUpQuestions(message.data);
+                }
+                break;
+
+            case 'summary-error':
+                if (message.target === 'content' && message.data) {
+                    console.error('[Content] Summary error:', message.data.message);
                 }
                 break;
 
